@@ -6,6 +6,7 @@ import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit";
 import { createPublicClient, http } from "viem";
 import { getActiveChain, QUESTBOARD_ADDRESS } from "@/lib/chain";
 import { QUESTBOARD_ABI } from "@/lib/abi/QuestBoard";
+import { ipfsCidUrl } from "@/lib/ipfs";
 import Link from "next/link";
 
 function useQuests() {
@@ -18,13 +19,44 @@ function useQuests() {
       try {
         const client = createPublicClient({ chain: getActiveChain(), transport: http() });
         const count = (await client.readContract({ address: QUESTBOARD_ADDRESS, abi: QUESTBOARD_ABI, functionName: "questCount" })) as bigint;
+        console.log(`Quest count: ${count.toString()}`);
         const arr: any[] = [];
         const max = Number(count);
-        const ids = Array.from({ length: max }, (_, i) => BigInt(i));
+        const ids = Array.from({ length: max }, (_, i) => BigInt(i + 1));
+        console.log(`Quest IDs to fetch: ${ids.map(id => id.toString()).join(", ")}`);
         for (const id of ids) {
           const q = await client.readContract({ address: QUESTBOARD_ADDRESS, abi: QUESTBOARD_ABI, functionName: "getQuest", args: [id] });
           const [creator, cid, prize, deadline, cancelled, finalized, participantsCount] = q as any;
-          arr.push({ id, creator, cid, prize, deadline: Number(deadline), cancelled, finalized, participantsCount: Number(participantsCount) });
+          
+          // Fetch metadata from IPFS
+          let metadata = null;
+          if (cid) {
+            try {
+              const metaRes = await fetch(ipfsCidUrl(cid));
+              if (metaRes.ok) {
+                metadata = await metaRes.json();
+              }
+            } catch (e) {
+              console.warn(`Failed to fetch metadata for quest ${id}:`, e);
+            }
+          }
+          
+          const prizeEth = Number(prize) / 1e18;
+          console.log(`Quest ${id}: prize = ${prize.toString()} wei = ${prizeEth} ETH`);
+          
+          arr.push({ 
+            id, 
+            creator, 
+            cid, 
+            prize, 
+            prizeEth,
+            deadline: Number(deadline), 
+            cancelled, 
+            finalized, 
+            participantsCount: Number(participantsCount),
+            title: metadata?.title || `Quest #${id}`,
+            description: metadata?.description || ""
+          });
         }
         if (mounted) setItems(arr.filter((q) => !q.cancelled));
       } catch (e: any) {
@@ -80,9 +112,12 @@ export default function QuestsPage() {
               <Link key={q.id.toString()} href={`/quest/${q.id}`} className="card block">
                 <div className="card-content">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">Quest #{q.id.toString()}</div>
-                    <div className="badge badge-primary">{(Number(q.prize) / 1e18).toFixed(4)} ETH</div>
+                    <div className="text-sm font-medium">{q.title}</div>
+                    <div className="badge badge-primary">{q.prizeEth.toFixed(5)} ETH</div>
                   </div>
+                  {q.description && (
+                    <div className="mt-1 text-xs text-[var(--app-foreground-muted)] line-clamp-2">{q.description}</div>
+                  )}
                   <div className="mt-1 text-xs text-[var(--app-foreground-muted)]">Deadline: {new Date(q.deadline * 1000).toLocaleString()}</div>
                 </div>
               </Link>

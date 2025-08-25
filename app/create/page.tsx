@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { encodeFunctionData } from "viem";
 import { QUESTBOARD_ABI } from "@/lib/abi/QuestBoard";
 import { QUESTBOARD_ADDRESS } from "@/lib/chain";
 import { useMiniKit, useComposeCast } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
+import {
+  Transaction,
+  TransactionButton,
+  TransactionError,
+  TransactionResponse,
+  TransactionStatus,
+  TransactionStatusAction,
+  TransactionStatusLabel,
+} from "@coinbase/onchainkit/transaction";
 
 export default function CreateQuest() {
   const router = useRouter();
@@ -48,10 +57,13 @@ export default function CreateQuest() {
     setFrameReady();
   }, [setFrameReady]);
 
-  async function handleCreate() {
+  const [transactionCalls, setTransactionCalls] = useState<{ to: `0x${string}`; data: `0x${string}`; value: bigint }[]>([]);
+
+  const handlePrepareTransaction = useCallback(async () => {
     try {
-      if (!canSubmit) return;
+      if (!canSubmit || !address) return;
       setLoading(true);
+      
       const meta = { title, description };
       const pin = await fetch("/api/pin", {
         method: "POST",
@@ -69,33 +81,42 @@ export default function CreateQuest() {
 
       const eth = parseFloat(prize);
       if (!Number.isFinite(eth) || eth <= 0) throw new Error("Invalid prize amount");
-      if (!address) throw new Error("No wallet connected");
       
       const valueWei = BigInt(Math.floor(eth * 1e18));
-      const tx = await (window as any).ethereum?.request?.({
-        method: "eth_sendTransaction",
-        params: [
-          {
-            from: address,
-            to: QUESTBOARD_ADDRESS,
-            data,
-            value: `0x${valueWei.toString(16)}`,
-          },
-        ],
-      });
-
-      if (tx) {
-        composeCast({
-          text: `New Quest: ${title} — join now!`,
-          embeds: [typeof window !== "undefined" ? window.location.origin : ""],
-        });
-      }
+      
+      console.log('Creating quest with prize:', eth, 'ETH =', valueWei.toString(), 'wei');
+      
+      setTransactionCalls([{
+        to: QUESTBOARD_ADDRESS as `0x${string}`,
+        data: data as `0x${string}`,
+        value: valueWei,
+      }]);
     } catch (e) {
       console.error(e);
-    } finally {
       setLoading(false);
     }
-  }
+  }, [canSubmit, address, title, description, deadline, prize]);
+
+  const handleTransactionSuccess = useCallback(async (response: TransactionResponse) => {
+    setLoading(false);
+    const transactionHash = response.transactionReceipts[0].transactionHash;
+    console.log(`Quest created successfully: ${transactionHash}`);
+    
+    composeCast({
+      text: `New Quest: ${title} — join now!`,
+      embeds: [typeof window !== "undefined" ? window.location.origin : ""],
+    });
+    
+    // Show success message and redirect to quests page
+    alert(`Quest "${title}" created successfully! 🎉`);
+    router.push("/quests");
+  }, [composeCast, title, router]);
+
+  const handleTransactionError = useCallback((error: TransactionError) => {
+    console.error("Transaction failed:", error);
+    setLoading(false);
+    setTransactionCalls([]);
+  }, []);
 
   return (
     <div className="container-app py-4 space-y-3">
@@ -146,14 +167,32 @@ export default function CreateQuest() {
             </div>
           </div>
           <div className="pt-1">
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!canSubmit}
-              className="btn btn-primary w-full"
-            >
-              {loading ? "Creating…" : "Create Quest"}
-            </button>
+            {!address ? (
+              <div className="text-center text-[var(--ock-text-error)]">
+                Connect your wallet to create a quest
+              </div>
+            ) : transactionCalls.length > 0 ? (
+              <Transaction
+                calls={transactionCalls}
+                onSuccess={handleTransactionSuccess}
+                onError={handleTransactionError}
+              >
+                <TransactionButton className="btn btn-primary w-full" />
+                <TransactionStatus>
+                  <TransactionStatusAction />
+                  <TransactionStatusLabel />
+                </TransactionStatus>
+              </Transaction>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePrepareTransaction}
+                disabled={!canSubmit}
+                className="btn btn-primary w-full"
+              >
+                {loading ? "Preparing…" : "Create Quest"}
+              </button>
+            )}
           </div>
         </div>
       </div>

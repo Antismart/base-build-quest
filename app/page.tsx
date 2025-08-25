@@ -118,6 +118,7 @@ export default function App() {
                   <li>Onchain transparency on Base for trust-minimized rewards.</li>
                   <li>One-tap Farcaster sharing so quests and submissions reach more builders.</li>
  
+ 
                  </ul>
                </div>
             </div>

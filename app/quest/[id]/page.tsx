@@ -18,6 +18,7 @@ function useQuest(questId: bigint) {
     let mounted = true;
     async function run() {
       try {
+        console.log(`Loading quest ${questId}...`);
         const client = createPublicClient({ chain: getActiveChain(), transport: http() });
         const q = await client.readContract({
           address: QUESTBOARD_ADDRESS,
@@ -25,14 +26,31 @@ function useQuest(questId: bigint) {
           functionName: "getQuest",
           args: [questId],
         });
+        console.log("Raw quest data:", q);
         if (!mounted) return;
         const [creator, cid, prize, deadline, cancelled, finalized, participantsCount, winners] = q as any;
-        setQuest({ questId, creator, cid, prize, deadline: Number(deadline), cancelled, finalized, participantsCount: Number(participantsCount), winners });
+        console.log("Parsed quest data:", {
+          creator,
+          cid, 
+          prize: prize.toString(),
+          deadline: Number(deadline),
+          cancelled,
+          finalized,
+          participantsCount: Number(participantsCount)
+        });
+        const prizeEth = Number(prize) / 1e18;
+        setQuest({ questId, creator, cid, prize, prizeEth, deadline: Number(deadline), cancelled, finalized, participantsCount: Number(participantsCount), winners });
         if (cid) {
+          console.log(`Fetching metadata from IPFS: ${cid}`);
           const r = await fetch(ipfsCidUrl(cid));
-          if (r.ok) setMetadata(await r.json());
+          if (r.ok) {
+            const meta = await r.json();
+            console.log("Metadata:", meta);
+            setMetadata(meta);
+          }
         }
       } catch (e: any) {
+        console.error("Error loading quest:", e);
         setError(e?.message || "failed to load quest");
       } finally {
         setLoading(false);
@@ -50,6 +68,24 @@ function useQuest(questId: bigint) {
 export default function QuestDetail({ params }: { params: { id: string } }) {
   const router = useRouter();
   const id = BigInt(params.id);
+  
+  // Check if quest ID is valid (should be >= 1)
+  if (id <= 0) {
+    return (
+      <div className="container-app py-4">
+        <div className="card">
+          <div className="card-content text-center">
+            <h1 className="text-xl font-semibold text-red-500">Invalid Quest ID</h1>
+            <p className="mt-2 text-[var(--app-foreground-muted)]">Quest ID must be a positive number.</p>
+            <button className="btn btn-primary mt-4" onClick={() => router.push('/quests')}>
+              View All Quests
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   const { loading, error, quest, metadata } = useQuest(id);
   const [submitting, setSubmitting] = useState(false);
   const [link, setLink] = useState("");
@@ -141,7 +177,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div>
               <div className="label">Prize</div>
-              <div className="badge badge-primary">{quest ? (Number(quest.prize) / 1e18).toFixed(4) : "-"} ETH</div>
+              <div className="badge badge-primary">{quest ? quest.prizeEth.toFixed(5) : "-"} ETH</div>
             </div>
             <div>
               <div className="label">Deadline</div>
