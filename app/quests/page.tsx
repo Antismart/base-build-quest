@@ -76,6 +76,7 @@ export default function QuestsPage() {
   const { setFrameReady, isFrameReady } = useMiniKit();
   const addFrame = useAddFrame();
   const [frameAdded, setFrameAdded] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'open' | 'ended' | 'finalized'>('all');
   const { loading, error, items } = useQuests();
 
   useEffect(() => { if (!isFrameReady) setFrameReady(); }, [setFrameReady, isFrameReady]);
@@ -85,50 +86,264 @@ export default function QuestsPage() {
     setFrameAdded(Boolean(ok));
   }, [addFrame]);
 
+  // Filter quests based on status
+  const filteredQuests = items.filter(quest => {
+    const now = Math.floor(Date.now() / 1000);
+    const isOpen = !quest.finalized && !quest.cancelled && quest.deadline > now;
+    const isEnded = !quest.finalized && !quest.cancelled && quest.deadline <= now;
+    const isFinalized = quest.finalized;
+    
+    switch (filter) {
+      case 'open': return isOpen;
+      case 'ended': return isEnded;
+      case 'finalized': return isFinalized;
+      default: return !quest.cancelled; // Show all except cancelled
+    }
+  });
+
+  const getQuestStatus = (quest: any) => {
+    const now = Math.floor(Date.now() / 1000);
+    if (quest.cancelled) return { text: 'Cancelled', color: 'badge-danger' };
+    if (quest.finalized) return { text: 'Finalized', color: 'badge-success' };
+    if (quest.deadline <= now) return { text: 'Ended', color: 'badge-warning' };
+    return { text: 'Open', color: 'badge-success' };
+  };
+
+  const getTimeRemaining = (deadline: number) => {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = deadline - now;
+    if (diff <= 0) return 'Ended';
+    
+    const days = Math.floor(diff / (24 * 60 * 60));
+    const hours = Math.floor((diff % (24 * 60 * 60)) / (60 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h left`;
+    return 'Ending soon';
+  };
+
   return (
     <div className="flex flex-col min-h-screen mini-app-theme text-[var(--app-foreground)] bg-[var(--app-background)]">
-      <div className="container-app py-4">
-        <header className="flex justify-between items-center mb-4 h-11">
-          <div className="flex items-center gap-2">
-            <button className="btn btn-ghost" onClick={() => router.back()}>← Back</button>
-            <h1 className="text-xl font-semibold">Quests</h1>
+      <div className="container-app py-4 space-y-6">
+        {/* Header Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <button className="btn btn-ghost" onClick={() => router.back()}>
+              ← Back
+            </button>
+            <button className="btn btn-ghost text-[var(--app-accent)] text-xs" onClick={handleAddFrame}>
+              {frameAdded ? "✓ Saved" : "Save Frame"}
+            </button>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/create" className="btn btn-outline">Create</Link>
-            <button className="btn btn-ghost text-[var(--app-accent)]" onClick={handleAddFrame}>{frameAdded ? "Saved" : "Save Frame"}</button>
-          </div>
-        </header>
-        <main className="space-y-3">
-          {loading && (
-            <div className="space-y-2">
-              <div className="h-16 skeleton" />
-              <div className="h-16 skeleton" />
-              <div className="h-16 skeleton" />
+          
+          {/* Hero Section */}
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-[var(--app-accent)] to-purple-500 rounded-full flex items-center justify-center mx-auto">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-          )}
-          {error && <div className="text-sm text-red-500">{error}</div>}
-          <div className="space-y-2">
-            {items.map((q) => (
-              <Link key={q.id.toString()} href={`/quest/${q.id}`} className="card block">
-                <div className="card-content">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{q.title}</div>
-                    <div className="badge badge-primary">{q.prizeEth.toFixed(5)} ETH</div>
-                  </div>
-                  {q.description && (
-                    <div className="mt-1 text-xs text-[var(--app-foreground-muted)] line-clamp-2">{q.description}</div>
-                  )}
-                  <div className="mt-1 text-xs text-[var(--app-foreground-muted)]">Deadline: {new Date(q.deadline * 1000).toLocaleString()}</div>
+            <div>
+              <h1 className="text-3xl font-bold text-[var(--app-foreground)] mb-2">onchain Builder Quests</h1>
+              <p className="text-[var(--app-foreground-muted)]">
+                Discover challenges, build projects, and earn rewards in the decentralized world
+              </p>
+            </div>
+            
+            {/* Stats Row */}
+            <div className="flex justify-center gap-6 text-sm">
+              <div className="text-center">
+                <div className="font-bold text-[var(--app-foreground)]">{items.length}</div>
+                <div className="text-[var(--app-foreground-muted)]">Total Quests</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-[var(--app-foreground)]">
+                  {items.filter(q => !q.finalized && !q.cancelled && q.deadline > Math.floor(Date.now() / 1000)).length}
                 </div>
-              </Link>
+                <div className="text-[var(--app-foreground-muted)]">Active</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-[var(--app-foreground)]">
+                  {items.reduce((sum, q) => sum + q.prizeEth, 0).toFixed(3)}
+                </div>
+                <div className="text-[var(--app-foreground-muted)]">ETH Prizes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            {(['all', 'open', 'ended', 'finalized'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  filter === f
+                    ? 'bg-[var(--app-accent)] text-white'
+                    : 'bg-[var(--app-gray)] text-[var(--app-foreground-muted)] hover:bg-[var(--app-gray-dark)]'
+                }`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)} ({
+                  f === 'all' ? items.filter(q => !q.cancelled).length :
+                  f === 'open' ? items.filter(q => !q.finalized && !q.cancelled && q.deadline > Math.floor(Date.now() / 1000)).length :
+                  f === 'ended' ? items.filter(q => !q.finalized && !q.cancelled && q.deadline <= Math.floor(Date.now() / 1000)).length :
+                  items.filter(q => q.finalized).length
+                })
+              </button>
             ))}
-            {!loading && items.length === 0 && (
-              <div className="card">
-                <div className="card-content text-sm text-[var(--app-foreground-muted)]">No quests yet. Be the first to create one.</div>
+          </div>
+          
+          <Link 
+            href="/create" 
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Create Quest
+          </Link>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="grid gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="card">
+                <div className="card-content">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="skeleton h-4 w-32"></div>
+                    <div className="skeleton h-6 w-16"></div>
+                  </div>
+                  <div className="skeleton h-3 w-full mb-2"></div>
+                  <div className="skeleton h-3 w-2/3"></div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="skeleton h-3 w-20"></div>
+                    <div className="skeleton h-3 w-24"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="card border-2 border-red-200 bg-red-50">
+            <div className="card-content text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-red-800 mb-1">Failed to Load Quests</h3>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Quest Cards Grid */}
+        {!loading && !error && (
+          <div className="grid gap-4">
+            {filteredQuests.map((quest) => {
+              const status = getQuestStatus(quest);
+              const timeRemaining = getTimeRemaining(quest.deadline);
+              
+              return (
+                <Link key={quest.id.toString()} href={`/quest/${quest.id}`} className="card block hover:shadow-lg transition-shadow">
+                  <div className="card-content">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-[var(--app-foreground)] text-sm leading-tight mb-1">
+                          {quest.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <div className={`badge ${status.color} text-xs`}>
+                            {status.text}
+                          </div>
+                          {status.text === 'Open' && (
+                            <div className="badge badge-muted text-xs">
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {timeRemaining}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="badge badge-primary text-sm font-semibold">
+                          {quest.prizeEth.toFixed(5)} ETH
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {quest.description && (
+                      <p className="text-xs text-[var(--app-foreground-muted)] line-clamp-2 mb-3">
+                        {quest.description}
+                      </p>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between text-xs text-[var(--app-foreground-muted)]">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          {quest.participantsCount} participants
+                        </div>
+                      </div>
+                      <div>
+                        Quest #{quest.id.toString()}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+
+            {/* Empty State */}
+            {filteredQuests.length === 0 && items.length > 0 && (
+              <div className="card border-2 border-dashed border-[var(--app-card-border)]">
+                <div className="card-content text-center py-8">
+                  <div className="w-12 h-12 bg-[var(--app-gray)] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-[var(--app-foreground-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-medium text-[var(--app-foreground)] mb-1">No {filter} quests found</h3>
+                  <p className="text-sm text-[var(--app-foreground-muted)]">
+                    Try a different filter or create a new quest
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* No Quests Ever */}
+            {items.length === 0 && !loading && (
+              <div className="card border-2 border-dashed border-[var(--app-card-border)]">
+                <div className="card-content text-center py-12">
+                  <div className="w-16 h-16 bg-gradient-to-r from-[var(--app-accent-light)] to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-[var(--app-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--app-foreground)] mb-2">No Quests Yet</h3>
+                  <p className="text-[var(--app-foreground-muted)] mb-4">
+                    Be the first to create a quest and start building the Web3 community!
+                  </p>
+                  <Link href="/create" className="btn btn-primary">
+                    Create Your First Quest
+                  </Link>
+                </div>
               </div>
             )}
           </div>
-        </main>
+        )}
       </div>
     </div>
   );

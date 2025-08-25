@@ -90,7 +90,7 @@ export default function App() {
         <main className="flex-1">
           <div className="mb-4">
             <div className="card overflow-hidden mb-3">
-              <img src="/hero.png" alt="Web3 Quest Board" className="w-full h-32 object-cover" />
+              <img src="/hero.png" alt="onchain Quest Board" className="w-full h-32 object-cover" />
             </div>
             <h1 className="text-xl font-semibold">Base Builder Quest Board</h1>
            </div>

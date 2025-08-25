@@ -24,6 +24,9 @@ export default function CreateQuest() {
   const [prize, setPrize] = useState("");
   const [deadline, setDeadline] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [createdQuestTitle, setCreatedQuestTitle] = useState("");
+  const [countdown, setCountdown] = useState(3);
   const { composeCast } = useComposeCast();
   const { setFrameReady } = useMiniKit();
   const { address } = useAccount();
@@ -107,9 +110,22 @@ export default function CreateQuest() {
       embeds: [typeof window !== "undefined" ? window.location.origin : ""],
     });
     
-    // Show success message and redirect to quests page
-    alert(`Quest "${title}" created successfully! 🎉`);
-    router.push("/quests");
+    // Show success modal
+    setCreatedQuestTitle(title);
+    setShowSuccess(true);
+    setCountdown(3);
+    
+    // Start countdown timer
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.push("/quests");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }, [composeCast, title, router]);
 
   const handleTransactionError = useCallback((error: TransactionError) => {
@@ -119,11 +135,60 @@ export default function CreateQuest() {
   }, []);
 
   return (
-    <div className="container-app py-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <button className="btn btn-ghost" onClick={() => router.back()}>← Back</button>
-        <h1 className="text-xl font-semibold">Create Quest</h1>
-      </div>
+    <>
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--app-card-bg)] rounded-2xl p-8 mx-4 max-w-md w-full shadow-2xl animate-modal-in border border-[var(--app-card-border)]">
+            <div className="text-center space-y-6">
+              {/* Success Icon */}
+              <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto animate-success-bounce animate-pulse-slow">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Success Message */}
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">Quest Created! 🎉</h2>
+                  <p className="text-[var(--app-foreground-muted)] mb-3">
+                    <span className="font-semibold text-[var(--app-foreground)]">&ldquo;{createdQuestTitle}&rdquo;</span> has been successfully created on the blockchain.
+                  </p>
+                </div>
+                
+                <div className="bg-[var(--app-accent-light)] rounded-lg p-3 border border-[var(--app-accent)]/20">
+                  <p className="text-sm text-[var(--app-accent)] font-medium">
+                    Redirecting in <span className="inline-block w-4 text-center font-bold">{countdown}</span> second{countdown !== 1 ? 's' : ''}...
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => router.push("/quests")}
+                  className="btn btn-primary flex-1"
+                >
+                  View Quest
+                </button>
+                <button 
+                  onClick={() => setShowSuccess(false)}
+                  className="btn btn-ghost flex-1"
+                >
+                  Continue Creating
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="container-app py-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <button className="btn btn-ghost" onClick={() => router.back()}>← Back</button>
+          <h1 className="text-xl font-semibold">Create Quest</h1>
+        </div>
       <div className="card">
         <div className="card-content space-y-3">
           <div>
@@ -196,6 +261,7 @@ export default function CreateQuest() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
