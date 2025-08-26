@@ -20,11 +20,11 @@ import {
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [activeTab] = useState("home");
 
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
@@ -90,7 +90,7 @@ export default function App() {
         <main className="flex-1">
           <div className="mb-4">
             <div className="card overflow-hidden mb-3">
-              <img src="/hero.png" alt="Grove Builder Platform" className="w-full h-32 object-cover" />
+              <Image src="/hero.png" alt="Grove Builder Platform" width={800} height={128} className="w-full h-32 object-cover" />
             </div>
             <h1 className="text-xl font-semibold">Grove - Builder Community</h1>
            </div>
@@ -117,7 +117,7 @@ export default function App() {
                 <ul className="list-disc pl-4 text-sm space-y-1">
                   <li>Onchain transparency on Base for trust-minimized rewards.</li>
                   <li>One-tap Farcaster sharing so challenges reach more builders in the Grove.</li>
-                  <li>A thriving ecosystem where builders support each other's growth.</li>
+                  <li>A thriving ecosystem where builders support each other&apos;s growth.</li>
                 </ul>
                </div>
             </div>

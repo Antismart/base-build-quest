@@ -6,7 +6,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { cid } = await pinJson(body);
     return NextResponse.json({ cid });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "pin failed" }, { status: 500 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "pin failed";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

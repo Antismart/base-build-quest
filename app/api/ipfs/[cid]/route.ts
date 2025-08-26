@@ -8,9 +8,9 @@ async function tryFetch(url: string) {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { cid: string } },
+  { params }: { params: Promise<{ cid: string }> },
 ) {
-  const { cid } = params;
+  const { cid } = await params;
   const gateways = [
     `https://gateway.pinata.cloud/ipfs/${cid}`,
     `https://ipfs.io/ipfs/${cid}`,

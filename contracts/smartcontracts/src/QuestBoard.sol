@@ -10,6 +10,7 @@ contract QuestBoard {
     /// ---------------------------------------------------------------------
     error NotCreator();
     error InvalidDeadline();
+    
     error QuestNotActive();
     error QuestAlreadyFinalized();
     error AlreadySubmitted();

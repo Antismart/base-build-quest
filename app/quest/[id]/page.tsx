@@ -17,11 +17,29 @@ import {
   TransactionStatusLabel,
 } from "@coinbase/onchainkit/transaction";
 
+interface QuestData {
+  questId: bigint;
+  creator: `0x${string}`;
+  cid: string;
+  prize: bigint;
+  prizeEth: number;
+  deadline: number;
+  cancelled: boolean;
+  finalized: boolean;
+  participantsCount: number;
+  winners: readonly `0x${string}`[];
+}
+
+interface QuestMetadata {
+  title?: string;
+  description?: string;
+}
+
 function useQuest(questId: bigint) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quest, setQuest] = useState<any>(null);
-  const [metadata, setMetadata] = useState<any>(null);
+  const [quest, setQuest] = useState<QuestData | null>(null);
+  const [metadata, setMetadata] = useState<QuestMetadata | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -37,7 +55,7 @@ function useQuest(questId: bigint) {
         });
         console.log("Raw quest data:", q);
         if (!mounted) return;
-        const [creator, cid, prize, deadline, cancelled, finalized, participantsCount, winners] = q as any;
+        const [creator, cid, prize, deadline, cancelled, finalized, participantsCount, winners] = q as readonly [`0x${string}`, string, bigint, bigint, boolean, boolean, number, readonly `0x${string}`[]];
         console.log("Parsed quest data:", {
           creator,
           cid, 
@@ -48,7 +66,7 @@ function useQuest(questId: bigint) {
           participantsCount: Number(participantsCount)
         });
         const prizeEth = Number(prize) / 1e18;
-        setQuest({ questId, creator, cid, prize, prizeEth, deadline: Number(deadline), cancelled, finalized, participantsCount: Number(participantsCount), winners });
+        setQuest({ questId, creator, cid, prize, prizeEth, deadline: Number(deadline), cancelled, finalized, participantsCount, winners });
         if (cid) {
           console.log(`Fetching metadata from IPFS: ${cid}`);
           const r = await fetch(ipfsCidUrl(cid));
@@ -58,9 +76,10 @@ function useQuest(questId: bigint) {
             setMetadata(meta);
           }
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Error loading quest:", e);
-        setError(e?.message || "failed to load quest");
+        const errorMessage = e instanceof Error ? e.message : "failed to load quest";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -74,10 +93,9 @@ function useQuest(questId: bigint) {
   return { loading, error, quest, metadata };
 }
 
-export default function QuestDetail({ params }: { params: { id: string } }) {
+export default function QuestDetail({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const id = BigInt(params.id);
-  const { loading, error, quest, metadata } = useQuest(id);
+  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [link, setLink] = useState("");
   const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
@@ -85,6 +103,17 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
   const [transactionCalls, setTransactionCalls] = useState<{ to: `0x${string}`; data: `0x${string}` }[]>([]);
   const { composeCast } = useComposeCast();
   const { context, setFrameReady } = useMiniKit();
+  
+  const id = resolvedParams ? BigInt(resolvedParams.id) : BigInt(0);
+  const { loading, error, quest, metadata } = useQuest(id);
+  
+  useEffect(() => {
+    async function resolveParams() {
+      const resolved = await Promise.resolve(params);
+      setResolvedParams(resolved);
+    }
+    resolveParams();
+  }, [params]);
 
   useEffect(() => {
     setFrameReady();
@@ -92,7 +121,8 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
 
   // Determine creator by comparing connected wallet address in context.wallets[0]?.address if present
   const isCreator = useMemo(() => {
-    const addr = (context as any)?.wallets?.[0]?.address as string | undefined;
+    const contextData = context as { wallets?: Array<{ address?: string }> };
+    const addr = contextData?.wallets?.[0]?.address;
     return !!(addr && quest?.creator && quest.creator.toLowerCase() === addr.toLowerCase());
   }, [context, quest?.creator]);
   const afterDeadline = useMemo(() => quest && Math.floor(Date.now() / 1000) > quest.deadline, [quest]);
@@ -160,6 +190,15 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
     setTransactionCalls([]);
   }, []);
 
+  // Show loading while params are being resolved
+  if (!resolvedParams) {
+    return (
+      <div className="container-app py-4">
+        <div className="h-24 skeleton" />
+      </div>
+    );
+  }
+
   // Check if quest ID is valid (should be >= 1) - after all hooks
   if (id <= 0) {
     return (
@@ -187,7 +226,8 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
         functionName: "selectWinners",
         args: [id, winners],
       });
-      const txResp = await (window as any).ethereum?.request?.({
+      const ethereum = (window as unknown as { ethereum?: { request?: (params: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum;
+      const txResp = await ethereum?.request?.({
         method: "eth_sendTransaction",
         params: [{ to: QUESTBOARD_ADDRESS, data }],
       });
@@ -310,7 +350,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
               {/* Title and Description */}
               <div>
                 <h1 className="text-3xl font-bold text-[var(--app-foreground)] mb-3">
-                  {metadata?.title || `Grove Challenge #${params.id}`}
+                  {metadata?.title || `Grove Challenge #${resolvedParams.id}`}
                 </h1>
                 {metadata?.description && (
                   <p className="text-lg text-[var(--app-foreground-muted)] leading-relaxed max-w-2xl mx-auto">

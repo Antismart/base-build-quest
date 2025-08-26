@@ -1,4 +1,3 @@
-import type { Hex } from "viem";
 import { QUESTBOARD_ABI } from "./abi/QuestBoard";
 import { QUESTBOARD_ADDRESS } from "./chain";
 

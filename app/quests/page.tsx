@@ -9,10 +9,24 @@ import { QUESTBOARD_ABI } from "@/lib/abi/QuestBoard";
 import { ipfsCidUrl } from "@/lib/ipfs";
 import Link from "next/link";
 
+interface QuestItem {
+  id: bigint;
+  creator: string;
+  cid: string;
+  prize: bigint;
+  prizeEth: number;
+  deadline: number;
+  cancelled: boolean;
+  finalized: boolean;
+  participantsCount: number;
+  title: string;
+  description: string;
+}
+
 function useQuests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<QuestItem[]>([]);
   useEffect(() => {
     let mounted = true;
     async function run() {
@@ -20,13 +34,13 @@ function useQuests() {
         const client = createPublicClient({ chain: getActiveChain(), transport: http() });
         const count = (await client.readContract({ address: QUESTBOARD_ADDRESS, abi: QUESTBOARD_ABI, functionName: "questCount" })) as bigint;
         console.log(`Grove challenges count: ${count.toString()}`);
-        const arr: any[] = [];
+        const arr: QuestItem[] = [];
         const max = Number(count);
         const ids = Array.from({ length: max }, (_, i) => BigInt(i + 1));
         console.log(`Quest IDs to fetch: ${ids.map(id => id.toString()).join(", ")}`);
         for (const id of ids) {
           const q = await client.readContract({ address: QUESTBOARD_ADDRESS, abi: QUESTBOARD_ABI, functionName: "getQuest", args: [id] });
-          const [creator, cid, prize, deadline, cancelled, finalized, participantsCount] = q as any;
+          const [creator, cid, prize, deadline, cancelled, finalized, participantsCount] = q as readonly [`0x${string}`, string, bigint, bigint, boolean, boolean, number, readonly `0x${string}`[]];
           
           // Fetch metadata from IPFS
           let metadata = null;
@@ -53,14 +67,15 @@ function useQuests() {
             deadline: Number(deadline), 
             cancelled, 
             finalized, 
-            participantsCount: Number(participantsCount),
+            participantsCount,
             title: metadata?.title || `Quest #${id}`,
             description: metadata?.description || ""
           });
         }
         if (mounted) setItems(arr.filter((q) => !q.cancelled));
-      } catch (e: any) {
-        setError(e?.message || "failed to load quests");
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "failed to load quests";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -101,7 +116,7 @@ export default function QuestsPage() {
     }
   });
 
-  const getQuestStatus = (quest: any) => {
+  const getQuestStatus = (quest: QuestItem) => {
     const now = Math.floor(Date.now() / 1000);
     if (quest.cancelled) return { text: 'Cancelled', color: 'badge-danger' };
     if (quest.finalized) return { text: 'Finalized', color: 'badge-success' };
