@@ -131,7 +131,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
     console.log(`Submission successful: ${transactionHash}`);
     
     composeCast({
-      text: `I submitted my project to Quest #${id} on the onchain Quest Board!`,
+      text: `I planted my project in Grove Challenge #${id}! 🌱`,
       embeds: [typeof window !== "undefined" ? window.location.href : ""],
     });
     
@@ -166,10 +166,10 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
       <div className="container-app py-4">
         <div className="card">
           <div className="card-content text-center">
-            <h1 className="text-xl font-semibold text-red-500">Invalid Quest ID</h1>
-            <p className="mt-2 text-[var(--app-foreground-muted)]">Quest ID must be a positive number.</p>
+            <h1 className="text-xl font-semibold text-red-500">Invalid Challenge ID</h1>
+            <p className="mt-2 text-[var(--app-foreground-muted)]">Challenge ID must be a positive number.</p>
             <button className="btn btn-primary mt-4" onClick={() => router.push('/quests')}>
-              View All Quests
+              Explore Grove
             </button>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
       });
       if (txResp) {
   composeCast({
-          text: `Winners announced for Quest #${id}! Congrats ${winners.join(", ")}`,
+          text: `Harvest time! Winners announced for Grove Challenge #${id}! 🎆 Congrats ${winners.join(", ")}`,
         });
       }
     } catch (e) {
@@ -223,7 +223,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
                 <div>
                   <h2 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">Submission Complete! 🚀</h2>
                   <p className="text-[var(--app-foreground-muted)] mb-3">
-                    Your project has been successfully submitted to the quest. Good luck!
+                    Your project has been planted in the Grove! Watch it grow with community feedback.
                   </p>
                 </div>
                 
@@ -246,7 +246,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
                   onClick={() => router.push("/quests")}
                   className="btn btn-ghost flex-1"
                 >
-                  View All Quests
+                  Explore Grove
                 </button>
               </div>
             </div>
@@ -258,7 +258,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
         {/* Header with Back Button */}
         <div className="flex items-center justify-between">
           <button className="btn btn-ghost" onClick={() => router.back()}>
-            ← Back to Quests
+            ← Back to Grove
           </button>
           <div className="flex items-center gap-2">
             {quest?.finalized && (
@@ -310,7 +310,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
               {/* Title and Description */}
               <div>
                 <h1 className="text-3xl font-bold text-[var(--app-foreground)] mb-3">
-                  {metadata?.title || `Quest #${params.id}`}
+                  {metadata?.title || `Grove Challenge #${params.id}`}
                 </h1>
                 {metadata?.description && (
                   <p className="text-lg text-[var(--app-foreground-muted)] leading-relaxed max-w-2xl mx-auto">
@@ -493,7 +493,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
               </div>
               <h3 className="text-lg font-semibold text-yellow-800 mb-2">Submission Period Ended</h3>
               <p className="text-yellow-700">
-                The deadline for this quest has passed. The creator will now select winners from existing submissions.
+                The growing season for this challenge has ended. The creator will now select which projects have flourished.
               </p>
             </div>
           </div>
@@ -508,9 +508,9 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
                   <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-green-800 mb-2">Quest Complete! 🎉</h3>
+              <h3 className="text-lg font-semibold text-green-800 mb-2">Challenge Complete! 🌱</h3>
               <p className="text-green-700 mb-4">
-                This quest has been finalized and winners have been selected. The prize pool has been distributed.
+                This challenge has reached fruition! Winners have been selected and the harvest has been distributed.
               </p>
               {quest.winners.length > 0 && (
                 <div className="text-sm text-green-600">
@@ -531,9 +531,9 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Quest Cancelled</h3>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Challenge Cancelled</h3>
               <p className="text-red-700">
-                This quest has been cancelled by the creator. The prize pool has been returned.
+                This challenge has been cancelled by the creator. The seed funding has been returned.
               </p>
             </div>
           </div>
@@ -552,7 +552,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
                 </div>
                 
                 <div>
-                  <h3 className="text-xl font-bold text-purple-800 mb-2">Quest Creator Actions</h3>
+                  <h3 className="text-xl font-bold text-purple-800 mb-2">Grove Gardener Actions</h3>
                   <p className="text-purple-700 mb-4">
                     The submission period has ended. Review submissions and select the winners to distribute the prize pool.
                   </p>

@@ -1,6 +1,8 @@
-# MiniKit Template
+# Grove - Builder Community Platform
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-onchain --mini`](), configured with:
+Grove is a thriving builder community on Base where challenges are planted, growth is nurtured, and innovation is harvested.
+
+Built with [Next.js](https://nextjs.org) and configured with:
 
 - [MiniKit](https://docs.base.org/builderkits/minikit/overview)
 - [OnchainKit](https://www.base.org/builders/onchainkit)
@@ -110,4 +112,4 @@ To get started building your own frame, follow these steps:
 - [OnchainKit Documentation](https://docs.base.org/builderkits/onchainkit/getting-started)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-# base-build-quest
+# Grove - Where Builders Grow Together 🌱

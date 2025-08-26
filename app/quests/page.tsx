@@ -19,7 +19,7 @@ function useQuests() {
       try {
         const client = createPublicClient({ chain: getActiveChain(), transport: http() });
         const count = (await client.readContract({ address: QUESTBOARD_ADDRESS, abi: QUESTBOARD_ABI, functionName: "questCount" })) as bigint;
-        console.log(`Quest count: ${count.toString()}`);
+        console.log(`Grove challenges count: ${count.toString()}`);
         const arr: any[] = [];
         const max = Number(count);
         const ids = Array.from({ length: max }, (_, i) => BigInt(i + 1));
@@ -144,9 +144,9 @@ export default function QuestsPage() {
               </svg>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-[var(--app-foreground)] mb-2">onchain Builder Quests</h1>
+              <h1 className="text-3xl font-bold text-[var(--app-foreground)] mb-2">Grove Challenges</h1>
               <p className="text-[var(--app-foreground-muted)]">
-                Discover challenges, build projects, and earn rewards in the decentralized world
+                Where builders grow together • Plant challenges, harvest innovation
               </p>
             </div>
             
@@ -154,7 +154,7 @@ export default function QuestsPage() {
             <div className="flex justify-center gap-6 text-sm">
               <div className="text-center">
                 <div className="font-bold text-[var(--app-foreground)]">{items.length}</div>
-                <div className="text-[var(--app-foreground-muted)]">Total Quests</div>
+                <div className="text-[var(--app-foreground-muted)]">Challenges</div>
               </div>
               <div className="text-center">
                 <div className="font-bold text-[var(--app-foreground)]">
@@ -202,7 +202,7 @@ export default function QuestsPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Create Quest
+            Plant Challenge
           </Link>
         </div>
 
@@ -237,7 +237,7 @@ export default function QuestsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="font-semibold text-red-800 mb-1">Failed to Load Quests</h3>
+              <h3 className="font-semibold text-red-800 mb-1">Failed to Load Grove</h3>
               <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>

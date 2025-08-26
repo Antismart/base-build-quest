@@ -90,13 +90,13 @@ export default function App() {
         <main className="flex-1">
           <div className="mb-4">
             <div className="card overflow-hidden mb-3">
-              <img src="/hero.png" alt="onchain Quest Board" className="w-full h-32 object-cover" />
+              <img src="/hero.png" alt="Grove Builder Platform" className="w-full h-32 object-cover" />
             </div>
-            <h1 className="text-xl font-semibold">Base Builder Quest Board</h1>
+            <h1 className="text-xl font-semibold">Grove - Builder Community</h1>
            </div>
           <div className="space-y-3">
-            <Link href="/quests" className="btn btn-primary w-full text-center">View Quests</Link>
-            <Link href="/create" className="btn btn-outline w-full text-center">Create a Quest</Link>
+            <Link href="/quests" className="btn btn-primary w-full text-center">Explore Grove</Link>
+            <Link href="/create" className="btn btn-outline w-full text-center">Plant a Challenge</Link>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -104,9 +104,9 @@ export default function App() {
               <div className="card-header"><div className="card-title">How it works</div></div>
               <div className="card-content">
                 <ul className="list-disc pl-4 text-sm space-y-1">
-                  <li>Create a quest by setting a prize and deadline.</li>
-                  <li>Builders submit links to their work. You review entries as they come in.</li>
-                  <li>Select winners after the deadline.</li>
+                  <li>Plant a challenge by setting a prize and deadline.</li>
+                  <li>Builders submit their work to grow in the Grove. You review entries as they come in.</li>
+                  <li>Select winners after the deadline and help the Grove flourish.</li>
                 </ul>
               </div>
             </div>
@@ -116,10 +116,9 @@ export default function App() {
               <div className="card-content">
                 <ul className="list-disc pl-4 text-sm space-y-1">
                   <li>Onchain transparency on Base for trust-minimized rewards.</li>
-                  <li>One-tap Farcaster sharing so quests and submissions reach more builders.</li>
- 
- 
-                 </ul>
+                  <li>One-tap Farcaster sharing so challenges reach more builders in the Grove.</li>
+                  <li>A thriving ecosystem where builders support each other's growth.</li>
+                </ul>
                </div>
             </div>
           </div>
@@ -131,7 +130,7 @@ export default function App() {
             className="text-[var(--ock-text-foreground-muted)] text-xs"
             onClick={() => openUrl("https://base.org/builders/minikit")}
           >
-            Built on Base with MiniKit
+            Grove • Built on Base with MiniKit
           </button>
         </footer>
       </div>

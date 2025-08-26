@@ -106,7 +106,7 @@ export default function CreateQuest() {
     console.log(`Quest created successfully: ${transactionHash}`);
     
     composeCast({
-      text: `New Quest: ${title} — join now!`,
+      text: `New challenge planted in Grove: ${title} — join the growth! 🌱`,
       embeds: [typeof window !== "undefined" ? window.location.origin : ""],
     });
     
@@ -151,9 +151,9 @@ export default function CreateQuest() {
               {/* Success Message */}
               <div className="space-y-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">Quest Created! 🎉</h2>
+                  <h2 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">Challenge Planted! 🌱</h2>
                   <p className="text-[var(--app-foreground-muted)] mb-3">
-                    <span className="font-semibold text-[var(--app-foreground)]">&ldquo;{createdQuestTitle}&rdquo;</span> has been successfully created on the blockchain.
+                    <span className="font-semibold text-[var(--app-foreground)]">&ldquo;{createdQuestTitle}&rdquo;</span> has been planted in the Grove and will grow with builder contributions.
                   </p>
                 </div>
                 
@@ -170,13 +170,13 @@ export default function CreateQuest() {
                   onClick={() => router.push("/quests")}
                   className="btn btn-primary flex-1"
                 >
-                  View Quest
+                  View in Grove
                 </button>
                 <button 
                   onClick={() => setShowSuccess(false)}
                   className="btn btn-ghost flex-1"
                 >
-                  Continue Creating
+                  Plant Another
                 </button>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function CreateQuest() {
       <div className="container-app py-4 space-y-3">
         <div className="flex items-center gap-2">
           <button className="btn btn-ghost" onClick={() => router.back()}>← Back</button>
-          <h1 className="text-xl font-semibold">Create Quest</h1>
+          <h1 className="text-xl font-semibold">Plant a Challenge</h1>
         </div>
       <div className="card">
         <div className="card-content space-y-3">
@@ -255,7 +255,7 @@ export default function CreateQuest() {
                 disabled={!canSubmit}
                 className="btn btn-primary w-full"
               >
-                {loading ? "Preparing…" : "Create Quest"}
+                {loading ? "Preparing…" : "Plant Challenge"}
               </button>
             )}
           </div>
