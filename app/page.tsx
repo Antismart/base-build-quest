@@ -90,12 +90,12 @@ export default function App() {
         <main className="flex-1">
           <div className="mb-4">
             <div className="card overflow-hidden mb-3">
-              <Image src="/Grove hero.png" alt="Grove Builder Platform" width={800} height={128} className="w-full h-32 object-cover" />
+              <Image src="/Grovehero.png" alt="Grove Builder Platform" width={800} height={128} className="w-full h-32 object-cover" />
             </div>
-            <h1 className="text-xl font-semibold">Grove - Builder Community</h1>
+            <h1 className="text-xl font-semibold">Base Builder Quest</h1>
            </div>
           <div className="space-y-3">
-            <Link href="/quests" className="btn btn-primary w-full text-center">Explore Grove</Link>
+            <Link href="/quests" className="btn btn-primary w-full text-center">Explore Base Builder Quest</Link>
             <Link href="/create" className="btn btn-outline w-full text-center">Plant a Challenge</Link>
           </div>
 
@@ -130,7 +130,7 @@ export default function App() {
             className="text-[var(--ock-text-foreground-muted)] text-xs"
             onClick={() => openUrl("https://base.org/builders/minikit")}
           >
-            Grove • Built on Base with MiniKit
+             Built on Base with MiniKit
           </button>
         </footer>
       </div>
