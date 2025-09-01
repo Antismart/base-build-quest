@@ -30,6 +30,18 @@ interface QuestData {
   winners: readonly `0x${string}`[];
 }
 
+interface Submission {
+  submitter: `0x${string}`;
+  submissionCid: string;
+  blockNumber: bigint;
+  content?: {
+    link?: string;
+    title?: string;
+    description?: string;
+  };
+  loading?: boolean;
+}
+
 interface QuestMetadata {
   title?: string;
   description?: string;
@@ -101,6 +113,10 @@ export default function QuestDetail({ params }: { params: Promise<{ id: string }
   const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
   const [submissionCountdown, setSubmissionCountdown] = useState(3);
   const [transactionCalls, setTransactionCalls] = useState<{ to: `0x${string}`; data: `0x${string}` }[]>([]);
+  const [showWinnerSelection, setShowWinnerSelection] = useState(false);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [selectedWinners, setSelectedWinners] = useState<Set<string>>(new Set());
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const { composeCast } = useComposeCast();
   const { context, setFrameReady } = useMiniKit();
   
@@ -190,6 +206,115 @@ export default function QuestDetail({ params }: { params: Promise<{ id: string }
     setTransactionCalls([]);
   }, []);
 
+  const fetchSubmissions = useCallback(async () => {
+    if (!quest || loadingSubmissions) return;
+    
+    setLoadingSubmissions(true);
+    try {
+      const client = createPublicClient({ chain: getActiveChain(), transport: http() });
+      const logs = await client.getLogs({
+        address: QUESTBOARD_ADDRESS,
+        event: {
+          type: 'event',
+          name: 'SubmissionCreated',
+          inputs: [
+            { type: 'uint256', name: 'questId', indexed: true },
+            { type: 'address', name: 'submitter', indexed: true },
+            { type: 'string', name: 'submissionCid', indexed: false },
+          ],
+        },
+        args: {
+          questId: id,
+        },
+        fromBlock: 'earliest',
+        toBlock: 'latest',
+      });
+
+      const submissions: Submission[] = logs.map(log => ({
+        submitter: log.args.submitter as `0x${string}`,
+        submissionCid: log.args.submissionCid as string,
+        blockNumber: log.blockNumber,
+        loading: true,
+      }));
+
+      setSubmissions(submissions);
+
+      // Fetch submission content from IPFS
+      const submissionsWithContent = await Promise.all(
+        submissions.map(async (submission) => {
+          try {
+            const response = await fetch(ipfsCidUrl(submission.submissionCid));
+            if (response.ok) {
+              const content = await response.json();
+              return {
+                ...submission,
+                content,
+                loading: false,
+              };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch content for ${submission.submissionCid}:`, error);
+          }
+          return {
+            ...submission,
+            loading: false,
+          };
+        })
+      );
+
+      setSubmissions(submissionsWithContent);
+    } catch (error) {
+      console.error('Failed to fetch submissions:', error);
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  }, [quest, id, loadingSubmissions]);
+
+  const handleShowWinnerSelection = useCallback(() => {
+    setShowWinnerSelection(true);
+    fetchSubmissions();
+  }, [fetchSubmissions]);
+
+  const handleWinnerToggle = useCallback((submitter: string) => {
+    setSelectedWinners(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(submitter)) {
+        newSet.delete(submitter);
+      } else {
+        newSet.add(submitter);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleConfirmWinners = useCallback(async () => {
+    if (selectedWinners.size === 0) return;
+    
+    const winners = Array.from(selectedWinners) as `0x${string}`[];
+    try {
+      const data = encodeFunctionData({
+        abi: QUESTBOARD_ABI,
+        functionName: "selectWinners",
+        args: [id, winners],
+      });
+      const ethereum = (window as unknown as { ethereum?: { request?: (params: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum;
+      const txResp = await ethereum?.request?.({
+        method: "eth_sendTransaction",
+        params: [{ to: QUESTBOARD_ADDRESS, data }],
+      });
+      if (txResp) {
+        const shortAddresses = winners.map(addr => `${addr.slice(0, 6)}...${addr.slice(-4)}`);
+        composeCast({
+          text: `Harvest time! Winners announced for Grove Challenge #${id}! 🎆 Congrats ${shortAddresses.join(", ")}`,
+        });
+        setShowWinnerSelection(false);
+        setSelectedWinners(new Set());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [selectedWinners, id, composeCast]);
+
   // Show loading while params are being resolved
   if (!resolvedParams) {
     return (
@@ -214,31 +339,6 @@ export default function QuestDetail({ params }: { params: Promise<{ id: string }
         </div>
       </div>
     );
-  }
-
-  async function handleSelectWinners() {
-    const addrList = prompt("Enter winner addresses comma separated");
-    if (!addrList) return;
-    const winners = addrList.split(",").map((s) => s.trim()) as `0x${string}`[];
-    try {
-      const data = encodeFunctionData({
-        abi: QUESTBOARD_ABI,
-        functionName: "selectWinners",
-        args: [id, winners],
-      });
-      const ethereum = (window as unknown as { ethereum?: { request?: (params: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum;
-      const txResp = await ethereum?.request?.({
-        method: "eth_sendTransaction",
-        params: [{ to: QUESTBOARD_ADDRESS, data }],
-      });
-      if (txResp) {
-  composeCast({
-          text: `Harvest time! Winners announced for Grove Challenge #${id}! 🎆 Congrats ${winners.join(", ")}`,
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
   }
 
   if (loading) return <div className="container-app py-4"><div className="h-24 skeleton" /></div>;
@@ -287,6 +387,198 @@ export default function QuestDetail({ params }: { params: Promise<{ id: string }
                   className="btn btn-ghost flex-1"
                 >
                   Explore Grove
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Winner Selection Modal */}
+      {showWinnerSelection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--app-card-bg)] rounded-2xl mx-4 max-w-2xl w-full max-h-[80vh] shadow-2xl animate-modal-in border border-[var(--app-card-border)] overflow-hidden">
+            <div className="p-6 space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[var(--app-foreground)]">Review & Select Winners</h2>
+                    <p className="text-sm text-[var(--app-foreground-muted)]">Review {submissions.length} submission{submissions.length !== 1 ? 's' : ''} and select the qualified ones</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowWinnerSelection(false)}
+                  className="btn btn-ghost p-2"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Prize Split Info */}
+              {selectedWinners.size > 0 && (
+                <div className="bg-[var(--app-accent-light)] rounded-lg p-4 border border-[var(--app-accent)]/20">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-[var(--app-accent)] mb-1">Prize Split</div>
+                    <div className="text-2xl font-bold text-[var(--app-accent)]">
+                      {quest ? (quest.prizeEth / selectedWinners.size).toFixed(5) : "0.00000"} ETH
+                    </div>
+                    <div className="text-xs text-[var(--app-accent)]">per winner ({selectedWinners.size} selected)</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submissions List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[var(--app-foreground)]">Review Submissions</h3>
+                  {loadingSubmissions && (
+                    <div className="flex items-center gap-2 text-sm text-[var(--app-foreground-muted)]">
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Loading submissions...
+                    </div>
+                  )}
+                </div>
+
+                <div className="max-h-96 overflow-y-auto space-y-3">
+                  {submissions.length === 0 && !loadingSubmissions ? (
+                    <div className="text-center py-8 text-[var(--app-foreground-muted)]">
+                      <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2M4 13h2m13-8L9.5 10.5M21 21l-9-9" />
+                      </svg>
+                      <p>No submissions found</p>
+                    </div>
+                  ) : (
+                    submissions.map((submission, index) => (
+                      <div
+                        key={submission.submitter}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                          selectedWinners.has(submission.submitter)
+                            ? 'bg-[var(--app-accent-light)] border-[var(--app-accent)] ring-2 ring-[var(--app-accent)]/30'
+                            : 'bg-[var(--app-card-bg)] border-[var(--app-card-border)] hover:border-[var(--app-accent)]/50'
+                        }`}
+                        onClick={() => handleWinnerToggle(submission.submitter)}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Checkbox */}
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-1 flex-shrink-0 ${
+                            selectedWinners.has(submission.submitter)
+                              ? 'bg-[var(--app-accent)] border-[var(--app-accent)]'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedWinners.has(submission.submitter) && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                          
+                          {/* Submission Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="text-sm font-semibold text-[var(--app-foreground)]">
+                                Submission #{index + 1}
+                              </div>
+                              <div className="text-xs text-[var(--app-foreground-muted)] font-mono">
+                                {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
+                              </div>
+                            </div>
+                            
+                            {submission.loading ? (
+                              <div className="flex items-center gap-2 text-sm text-[var(--app-foreground-muted)]">
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                                Loading submission...
+                              </div>
+                            ) : submission.content ? (
+                              <div className="space-y-2">
+                                {submission.content.title && (
+                                  <div className="text-sm font-medium text-[var(--app-foreground)]">
+                                    {submission.content.title}
+                                  </div>
+                                )}
+                                {submission.content.description && (
+                                  <div className="text-sm text-[var(--app-foreground-muted)] line-clamp-2">
+                                    {submission.content.description}
+                                  </div>
+                                )}
+                                {submission.content.link && (
+                                  <div className="flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-[var(--app-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    <a 
+                                      href={submission.content.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-[var(--app-accent)] hover:underline truncate"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {submission.content.link}
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-[var(--app-foreground-muted)]">
+                                Unable to load submission content
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Icon */}
+                          <div className="flex-shrink-0">
+                            {selectedWinners.has(submission.submitter) ? (
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-[var(--app-accent)] hover:underline font-medium">
+                                Select
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-[var(--app-card-border)]">
+                <button 
+                  onClick={() => setShowWinnerSelection(false)}
+                  className="btn btn-ghost flex-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleConfirmWinners}
+                  disabled={selectedWinners.size === 0}
+                  className="btn btn-primary flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd" />
+                    </svg>
+                    Award Winners ({selectedWinners.size} selected)
+                  </div>
                 </button>
               </div>
             </div>
@@ -616,7 +908,7 @@ export default function QuestDetail({ params }: { params: Promise<{ id: string }
 
                 <button
                   type="button"
-                  onClick={handleSelectWinners}
+                  onClick={handleShowWinnerSelection}
                   className="btn btn-primary w-full text-lg py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
                 >
                   <div className="flex items-center gap-2">
